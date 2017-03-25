@@ -3,3 +3,4 @@ input.mkv
 *.un~
 .DS_STORE
 data_streamer
+.virtualenv

@@ -47,10 +47,11 @@ func (p ProducerConsumer) ConsumeData() string {
 	panic("Should never reach here")
 }
 
-func CreateRedisConnection(host string, port int) redis.Conn {
-	networkConnection, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+func CreateRedisConnection(host, port string) redis.Conn {
+	url := fmt.Sprintf("%s:%s", host, port)
+	networkConnection, err := net.Dial("tcp", url)
 	if err != nil {
-		panic("Could not connect to the redis")
+		panic(fmt.Sprintf("Could not connect to the redis: %s", err))
 	}
 	return redis.NewConn(
 		networkConnection,

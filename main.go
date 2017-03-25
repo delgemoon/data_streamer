@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-const HOST = "localhost"
-const PORT = 6379
+var HOST = os.Getenv("REDIS_HOST")
+var PORT = os.Getenv("REDIS_PORT")
 
 func main() {
 	conn := CreateRedisConnection(HOST, PORT)

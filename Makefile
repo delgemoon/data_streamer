@@ -16,5 +16,6 @@ debug:
 	# THIS WORKS
 	# ffmpeg -y -i input.mkv -vcodec libx264 -b:v 0.03M -vf scale=202:-1 -r 15 -f h264 - | ffmpeg -y -i pipe:0 -map 0 -flags:v +global_header -vcodec libx264 works.mp4
 	#
-	ffmpeg -y -i input.mkv -vcodec libx264 -b:v 0.03M -vf scale=202:-1 -r 15 -f h264 - | ffmpeg -y -i pipe:0 frame_%03d.ppm
+	# ffmpeg -y -i input.mkv -vcodec libx264 -b:v 0.03M -vf scale=202:-1 -r 15 -f h264 - | ffmpeg -y -i pipe:0 frame_%03d.ppm
 	# ffmpeg -i input.mkv frame_%03d.ppm
+	ffmpeg -i input.mkv -f h264 - | ffmpeg -i pipe:0 frame_%03d.ppm
