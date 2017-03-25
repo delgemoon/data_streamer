@@ -9,13 +9,19 @@ import (
 var HOST = os.Getenv("REDIS_HOST")
 var PORT = os.Getenv("REDIS_PORT")
 
+type ProducerConsumer interface {
+	ClearBuffer()
+	ProduceData(data string)
+	ConsumeData() string
+}
+
 func main() {
 	conn := CreateRedisConnection(HOST, PORT)
 	defer conn.Close()
 
 	readOrWrite := os.Args[1]
 	keyspace := os.Args[2]
-	producerConsumer := NewProducerConsumer(conn, keyspace)
+	var producerConsumer ProducerConsumer = NewRedisProducerConsumer(conn, keyspace)
 
 	switch readOrWrite {
 	case "read":

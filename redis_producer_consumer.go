@@ -9,23 +9,23 @@ import (
 
 const TIMEOUT_SECONDS = 5
 
-type ProducerConsumer struct {
+type RedisProducerConsumer struct {
 	conn     redis.Conn
 	keyspace string
 }
 
-func NewProducerConsumer(conn redis.Conn, keyspace string) ProducerConsumer {
-	return ProducerConsumer{
+func NewRedisProducerConsumer(conn redis.Conn, keyspace string) RedisProducerConsumer {
+	return RedisProducerConsumer{
 		conn:     conn,
 		keyspace: keyspace,
 	}
 }
 
-func (p ProducerConsumer) ClearBuffer() {
+func (p RedisProducerConsumer) ClearBuffer() {
 	p.conn.Do("DEL", p.keyspace)
 }
 
-func (p ProducerConsumer) ProduceData(data string) {
+func (p RedisProducerConsumer) ProduceData(data string) {
 	p.conn.Do("RPUSH", p.keyspace, data)
 }
 
@@ -34,7 +34,7 @@ func blpopValueToString(blpopValue interface{}) string {
 	return string(asInterface[1].([]byte))
 }
 
-func (p ProducerConsumer) ConsumeData() string {
+func (p RedisProducerConsumer) ConsumeData() string {
 	timeout := 0
 	for {
 		rawValue, err := p.conn.Do("BLPOP", p.keyspace, timeout)
