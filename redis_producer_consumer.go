@@ -105,7 +105,7 @@ func (p *RedisProducerConsumer) flush() {
 
 func (p *RedisProducerConsumer) ConsumeData() string {
 	for {
-		response := p.client.BLPop(20*time.Second, p.keyspace).Val()
+		response := p.client.BLPop(2*time.Second, p.keyspace).Val()
 
 		if len(response) == 0 {
 			continue
