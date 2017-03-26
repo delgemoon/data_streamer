@@ -1,61 +1,118 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
-	"net"
+	"github.com/go-redis/redis"
+	"os"
+	"sync"
 	"time"
 )
 
 const TIMEOUT_SECONDS = 5
 
+var HOST = os.Getenv("REDIS_HOST")
+var PORT = os.Getenv("REDIS_PORT")
+var PASSWORD = os.Getenv("REDIS_PASSWORD")
+
+var TOTAL_BYTES_SENT = 0
+var TOTAL_BYTES_READ = 0
+
+const MIN_SEND_PERIOD = 2.0
+const MAX_BUFFER_SIZE = 500
+
+var opMutex sync.Mutex
+var timerChan = make(chan int)
+
 type RedisProducerConsumer struct {
-	conn     redis.Conn
-	keyspace string
+	client      *redis.Client
+	keyspace    string
+	writeBuffer []string
 }
 
-func NewRedisProducerConsumer(conn redis.Conn, keyspace string) RedisProducerConsumer {
-	return RedisProducerConsumer{
-		conn:     conn,
-		keyspace: keyspace,
+func clockTick() {
+	for {
+		time.Sleep(MIN_SEND_PERIOD * time.Second)
+		timerChan <- 1
 	}
 }
 
-func (p RedisProducerConsumer) ClearBuffer() {
-	p.conn.Do("DEL", p.keyspace)
+func NewRedisProducerConsumer(keyspace string) *RedisProducerConsumer {
+	// TODO this should be a singleton
+	go clockTick()
+	p := &RedisProducerConsumer{
+		client: redis.NewClient(
+			&redis.Options{
+				Addr:     fmt.Sprintf("[%s]:%s", HOST, PORT),
+				Password: PASSWORD,
+				DB:       0,
+			},
+		),
+		writeBuffer: make([]string, 0),
+		keyspace:    keyspace,
+	}
+	go p.flushOnTimerEvent()
+	return p
 }
 
-func (p RedisProducerConsumer) ProduceData(data string) {
-	p.conn.Do("RPUSH", p.keyspace, data)
+func (p *RedisProducerConsumer) ClearBuffer() {
+	p.client.Del(p.keyspace)
 }
 
-func blpopValueToString(blpopValue interface{}) string {
-	asInterface := blpopValue.([]interface{})
-	return string(asInterface[1].([]byte))
+func (p *RedisProducerConsumer) ProduceData(data string) {
+	opMutex.Lock()
+
+	for len(p.writeBuffer) >= MAX_BUFFER_SIZE {
+		p.flush()
+	}
+	p.writeBuffer = append(p.writeBuffer, data)
+	opMutex.Unlock()
+
+	if len(p.writeBuffer) >= MAX_BUFFER_SIZE {
+		p.flush()
+	}
 }
 
-func (p RedisProducerConsumer) ConsumeData() string {
-	timeout := 0
+func (p *RedisProducerConsumer) flushOnTimerEvent() {
 	for {
-		rawValue, err := p.conn.Do("BLPOP", p.keyspace, timeout)
-		if err != nil {
-			time.Sleep(1 * time.Second)
+		<-timerChan
+		p.flush()
+	}
+}
+
+func (p *RedisProducerConsumer) joinedBufferedBytes() string {
+	var buffer bytes.Buffer
+	for _, value := range p.writeBuffer {
+		buffer.WriteString(value)
+	}
+	p.writeBuffer = make([]string, 0)
+	return buffer.String()
+
+}
+
+func (p *RedisProducerConsumer) flush() {
+	opMutex.Lock()
+	defer opMutex.Unlock()
+
+	if len(p.writeBuffer) == 0 {
+		return
+	}
+	p.client.RPush(
+		p.keyspace,
+		p.joinedBufferedBytes(),
+	)
+}
+
+func (p *RedisProducerConsumer) ConsumeData() string {
+	for {
+		response := p.client.BLPop(20*time.Second, p.keyspace).Val()
+
+		if len(response) == 0 {
 			continue
 		}
-		return blpopValueToString(rawValue)
+		// key := response[0]
+		ret := response[1]
+		TOTAL_BYTES_READ += len(ret)
+		return ret
 	}
-	panic("Should never reach here")
-}
-
-func CreateRedisConnection(host, port string) redis.Conn {
-	url := fmt.Sprintf("%s:%s", host, port)
-	networkConnection, err := net.Dial("tcp", url)
-	if err != nil {
-		panic(fmt.Sprintf("Could not connect to the redis: %s", err))
-	}
-	return redis.NewConn(
-		networkConnection,
-		TIMEOUT_SECONDS*time.Second,
-		TIMEOUT_SECONDS*time.Second,
-	)
 }
