@@ -16,21 +16,30 @@ type ProducerConsumer interface {
 }
 
 func main() {
-	conn := CreateRedisConnection(HOST, PORT)
-	defer conn.Close()
+	// TODO do this better in the redis constructor
+	//conn := CreateRedisConnection(HOST, PORT)
+	//defer conn.Close()
 
 	readOrWrite := os.Args[1]
 	keyspace := os.Args[2]
-	var producerConsumer ProducerConsumer = NewRedisProducerConsumer(conn, keyspace)
+	// var producerConsumer ProducerConsumer = NewRedisProducerConsumer(conn, keyspace)
+	read := false
+	write := false
+	if readOrWrite == "read" {
+		read = true
+	} else {
+		write = true
+	}
+	var producerConsumer ProducerConsumer = NewPubnubProducerConsumer(keyspace, read, write)
 
 	switch readOrWrite {
 	case "read":
-		go indefiniteRedisRead(toStdOutStreamer, producerConsumer)
+		go indefiniteConsumerRead(toStdOutStreamer, producerConsumer)
 		go indefiniteStdOutWrite(toStdOutStreamer)
 	case "write":
 		producerConsumer.ClearBuffer()
 		go indefiniteStdInRead(toRedisStreamer)
-		go indefiniteRedisWrite(toRedisStreamer, producerConsumer)
+		go indefiniteProducerWrite(toRedisStreamer, producerConsumer)
 	default:
 		panic(fmt.Sprintf("Invalid input option: %s\n", readOrWrite))
 	}

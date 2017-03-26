@@ -3,7 +3,7 @@ build:
 
 stream:
 	# go build; ffmpeg -y -i input.mkv -vcodec libx264 -b:v 0.03M -vf scale=202:-1 -r 15 -f h264 - < /dev/null | ./data_streamer write connection_id
-	ffmpeg -y -i input.mkv -vcodec libx264 -b:v 0.03M -vf scale=202:-1 -r 15 -f h264 - | ./data_streamer write connection_id
+	ffmpeg -y -re -i input.mkv -vcodec libx264 -b:v 0.03M -vf scale=202:-1 -r 15 -f h264 - | ./data_streamer write connection_id
 
 read:
 	./data_streamer read connection_id | ffmpeg -y -re -i pipe:0 frame_%03d.ppm

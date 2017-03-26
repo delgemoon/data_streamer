@@ -33,7 +33,7 @@ func indefiniteStdInRead(outputChannel chan string) {
 	}
 }
 
-func indefiniteRedisWrite(inputChannel chan string, producer ProducerConsumer) {
+func indefiniteProducerWrite(inputChannel chan string, producer ProducerConsumer) {
 	for {
 		producer.ProduceData(<-inputChannel)
 	}

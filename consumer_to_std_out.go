@@ -1,13 +1,13 @@
 package main
 
 import (
-	//"fmt"
-	"os"
+	"fmt"
+	//"os"
 )
 
 var toStdOutStreamer chan string = make(chan string)
 
-func indefiniteRedisRead(outputChannel chan string, consumer ProducerConsumer) {
+func indefiniteConsumerRead(outputChannel chan string, consumer ProducerConsumer) {
 	for {
 		outputChannel <- consumer.ConsumeData()
 	}
@@ -27,9 +27,10 @@ func indefiniteStdOutWrite(inputChannel chan string) {
 		for {
 			splitPoint := min(chunkSize, len(data))
 			chunk := data[:splitPoint]
+			fmt.Printf("Some chunk: %d\n", len(chunk))
 			data = data[splitPoint:]
 
-			os.Stdout.Write(chunk)
+			//os.Stdout.Write(chunk)
 
 			if len(chunk) != chunkSize {
 				break
